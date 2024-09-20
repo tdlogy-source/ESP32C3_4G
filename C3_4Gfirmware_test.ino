@@ -1,19 +1,19 @@
 #include <HardwareSerial.h>
 #define ARDUINO_USB_CDC_ON_BOOT   = 1
 #define ARDUINO_USB_MODE         = 0
-#define simSerial               Serial0  // Sử dụng Serial0 cho UART
+#define simSerial               Serial0 
 #define MCU_SIM_BAUDRATE        115200
-#define MCU_SIM_TX_PIN          21 // TX GPIO18
-#define MCU_SIM_RX_PIN          20 // RX GPIO19
-#define MCU_SIM_EN_PIN          9  // Chân nguồn cho module SIM
+#define MCU_SIM_TX_PIN          21 
+#define MCU_SIM_RX_PIN          20 
+#define MCU_SIM_EN_PIN          9  
 
 // Số điện thoại để kiểm tra
-#define PHONE_NUMBER            "0374766875"
+#define PHONE_NUMBER            "Nhập số điện thoại"
 
 void sim_at_wait() {
     delay(100);
     while (simSerial.available()) {
-        Serial.write(simSerial.read());  // In log bằng Serial
+        Serial.write(simSerial.read());  
     }
 }
 
@@ -82,13 +82,8 @@ void setup() {
     sim_at_cmd("AT+GMM=?");
     sim_at_cmd("AT+CIMI");
 
-    // Gửi SMS
     sent_sms();
-
-    // Trì hoãn 5s
     delay(1000);   
-
-    // Gọi điện
     call();
 }
 
