@@ -1,24 +1,31 @@
 #include <HardwareSerial.h>
-#define ARDUINO_USB_CDC_ON_BOOT   = 1
-#define ARDUINO_USB_MODE         = 0
-#define simSerial               Serial0 
-#define MCU_SIM_BAUDRATE        115200
-#define MCU_SIM_TX_PIN          21 
-#define MCU_SIM_RX_PIN          20 
-#define MCU_SIM_EN_PIN          9  
+#include <WiFi.h>
 
-// Số điện thoại để kiểm tra
-#define PHONE_NUMBER            "Nhập số điện thoại"
+#define simSerial                 Serial0  
+#define MCU_SIM_BAUDRATE          115200
+#define MCU_SIM_TX_PIN            21 
+#define MCU_SIM_RX_PIN            20 
+#define MCU_SIM_EN_PIN            9 //doi voi module_V2 IO9 chuyen thanh IO2  
+#define MCU_LED                   10
+#define PHONE_NUMBER            "0..." 
+// Thay bằng thông tin WiFi của bạn
+const char* ssid = "TDLOGY";        // Tên mạng WiFi
+const char* password = "lktd@12346"; // Mật khẩu WiFi
+
 
 void sim_at_wait() {
-    delay(100);
+    delay(500);
     while (simSerial.available()) {
-        Serial.write(simSerial.read());  
+        Serial.write(simSerial.read());
     }
 }
 
+
 bool sim_at_cmd(String cmd) {
+    Serial.print("Sending command: ");
+    Serial.println(cmd);
     simSerial.println(cmd);
+    delay(500); // 
     sim_at_wait();
     return true;
 }
@@ -29,68 +36,81 @@ bool sim_at_send(char c) {
 }
 
 void sent_sms() {
-    sim_at_cmd("AT+CMGF=1");
+    sim_at_cmd("AT+CMGF=1"); 
     String temp = "AT+CMGS=\"";
     temp += PHONE_NUMBER;
     temp += "\"";
     sim_at_cmd(temp);
-    sim_at_cmd("helloFromLktd");
+    sim_at_cmd("hello from TDLOGY");
+    sim_at_send(0x1A); 
+} 
 
-    // Ký tự kết thúc tin nhắn
-    sim_at_send(0x1A);
-}
-
-void call() {
-    String temp = "ATD";
-    temp += PHONE_NUMBER;
-    temp += ";";
-    sim_at_cmd(temp); 
-
-    delay(20000);
-
-    // Kết thúc cuộc gọi
-    sim_at_cmd("ATH"); 
-}
 
 void setup() {
-    // Kích hoạt nguồn cho module SIM
-    pinMode(MCU_SIM_EN_PIN, OUTPUT); 
-    digitalWrite(MCU_SIM_EN_PIN, LOW);
-
-    delay(20);
-    Serial.begin(115200);  // Serial cho in log
-    Serial.println("\n\n\n\n-----------------------\nHệ thống đã khởi động!!!!");
-
-    // Trì hoãn 8s để module SIM khởi động
+    pinMode(MCU_SIM_EN_PIN, OUTPUT);
+    digitalWrite(MCU_SIM_EN_PIN, LOW); 
+    delay(500);   // Thả PWRKEY lên cao
+    Serial.begin(115200);
+    pinMode(MCU_LED, OUTPUT);
+    digitalWrite(MCU_LED, HIGH);
+    Serial.println("\n\n\n\n-----------------------\nSystem started!!!!");
     delay(8000);
-    simSerial.begin(MCU_SIM_BAUDRATE, SERIAL_8N1, MCU_SIM_RX_PIN, MCU_SIM_TX_PIN); // Bắt đầu UART cho SIM
+    Serial.println("Starting ESP32 WiFi Test...");
 
-    // Kiểm tra lệnh AT
+    // Đặt ESP32 ở chế độ Station (kết nối với WiFi)
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(ssid, password);
+
+    Serial.print("Connecting to ");
+    Serial.println(ssid);
+
+    // Chờ kết nối WiFi
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+    }
+
+    // Khi kết nối thành công
+    Serial.println("");
+    Serial.println("WiFi connected!");
+    Serial.print("IP Address: ");
+    Serial.println(WiFi.localIP());      // Hiển thị địa chỉ IP
+    Serial.print("RSSI: ");
+    Serial.println(WiFi.RSSI());         // Hiển thị cường độ tín hiệu (dBm)
+    Serial.print("MAC Address: ");
+    Serial.println(WiFi.macAddress());   // Hiển thị địa chỉ MAC
+
+    simSerial.begin(MCU_SIM_BAUDRATE, SERIAL_8N1, MCU_SIM_RX_PIN, MCU_SIM_TX_PIN);
+    Serial.println("Checking AT command...");
     sim_at_cmd("AT");
-
-    // Thông tin sản phẩm
+    Serial.println("Getting product info...");
     sim_at_cmd("ATI");
-
-    // Kiểm tra SIM
+    Serial.println("Checking SIM status...");
     sim_at_cmd("AT+CPIN?");
-
-    // Kiểm tra chất lượng tín hiệu
+    Serial.println("Checking signal quality...");
     sim_at_cmd("AT+CSQ");
-    sim_at_cmd("AT+CCID");
-    sim_at_cmd("AT+CFSN");
-    sim_at_cmd("AT+CGSN");
-    sim_at_cmd("AT+GMM=?");
+    Serial.println("Getting IMSI...");
     sim_at_cmd("AT+CIMI");
-
-    sent_sms();
-    delay(1000);   
-    call();
+    //sent_sms();
+    // delay(5000);   
+    if (WiFi.status() == WL_CONNECTED) {
+        Serial.println("Still connected to WiFi");
+        Serial.print("RSSI: ");
+        Serial.println(WiFi.RSSI());
+    } else {
+        Serial.println("WiFi disconnected! Attempting to reconnect...");
+        WiFi.reconnect();
+    }
+    //get_gps_data();
+  
 }
-
 void loop() {     
     if (Serial.available()) {
         char c = Serial.read();
         simSerial.write(c);
     }
-    sim_at_wait();
+    Serial.println("Checking signal quality...");
+    sim_at_cmd("AT+CSQ");
+    delay(5000);
+    
 }
